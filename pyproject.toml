@@ -1,0 +1,15 @@
+[project]
+name = "dns-scanner"
+version = "0.1.0"
+description = "Ferramenta de análise DNS: censura, desempenho e privacidade"
+requires-python = ">=3.11"
+dependencies = [
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+dns-scanner = "dns_scanner.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
