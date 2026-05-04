@@ -99,15 +99,22 @@ def detect_blocks(results: list[QueryResult]) -> dict[str, tuple[str, list[str]]
     noerror_with_ips = sum(1 for r in results if r.rcode == 0 and r.ips)
     majority_resolves = noerror_with_ips >= len(results) // 2
 
+    # TIMEOUT is only suspicious when most servers actually responded
+    majority_responded = sum(1 for r in results if r.response is not None) >= len(results) // 2
+
     blocks: dict[str, tuple[str, list[str]]] = {}
     for r in results:
         name = r.server_name or r.server_ip
 
         if r.error == "TIMEOUT":
-            blocks[name] = ("TIMEOUT", [])
+            # Flag only if most other servers responded fine — otherwise it's
+            # a domain/infrastructure issue, not selective blocking.
+            if majority_responded:
+                blocks[name] = ("TIMEOUT", [])
             continue
         if r.response is None:
-            blocks[name] = (r.error or "NO_RECORDS", [])
+            if majority_responded:
+                blocks[name] = (r.error or "NO_RECORDS", [])
             continue
 
         rcode = r.rcode
