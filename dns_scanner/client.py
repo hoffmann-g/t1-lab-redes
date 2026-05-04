@@ -1,12 +1,12 @@
-"""Clientes DNS: UDP (porta 53) e DNS over TLS/DoT (porta 853, RFC 7858)."""
+"""DNS clients: UDP (port 53) and DNS over TLS/DoT (port 853, RFC 7858)."""
 import socket
 import ssl
 import struct
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-from .protocol import build_query, parse_response, DNSResponse, QTYPE_A
+from .protocol import build_query, parse_response, DNSResponse
 
 
 @dataclass
@@ -46,7 +46,7 @@ def query_udp(
     port: int = 53,
     timeout: float = 3.0,
 ) -> QueryResult:
-    """Consulta DNS via UDP na porta 53."""
+    """Send a single DNS query over UDP on port 53."""
     msg = build_query(domain)
     start = time.perf_counter()
 
@@ -79,9 +79,10 @@ def query_dot(
     port: int = 853,
     timeout: float = 10.0,
 ) -> QueryResult:
-    """Consulta DNS over TLS (DoT) na porta 853 conforme RFC 7858.
+    """Send a DNS query over TLS on port 853 (DoT, RFC 7858).
 
-    A mensagem DNS é prefixada com 2 bytes indicando o tamanho.
+    The DNS message is prefixed with a 2-byte big-endian length field
+    as required by RFC 7858 §3.3.
     """
     msg = build_query(domain)
     msg_with_len = struct.pack("!H", len(msg)) + msg
@@ -93,22 +94,22 @@ def query_dot(
             with ctx.wrap_socket(raw_sock, server_hostname=server_host) as tls_sock:
                 tls_sock.sendall(msg_with_len)
 
-                # Lê prefixo de 2 bytes com o tamanho da resposta
+                # Read the 2-byte response length prefix
                 length_buf = b""
                 while len(length_buf) < 2:
                     chunk = tls_sock.recv(2 - len(length_buf))
                     if not chunk:
-                        raise ConnectionError("Conexão encerrada antes do tamanho")
+                        raise ConnectionError("Connection closed before length prefix")
                     length_buf += chunk
 
                 resp_len = struct.unpack("!H", length_buf)[0]
 
-                # Lê a resposta completa
+                # Read the full response
                 resp_data = b""
                 while len(resp_data) < resp_len:
                     chunk = tls_sock.recv(resp_len - len(resp_data))
                     if not chunk:
-                        raise ConnectionError("Conexão encerrada antes da resposta completa")
+                        raise ConnectionError("Connection closed before full response")
                     resp_data += chunk
 
         elapsed = (time.perf_counter() - start) * 1000

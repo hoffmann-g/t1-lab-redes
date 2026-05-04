@@ -1,4 +1,4 @@
-"""Configurações de servidores/domínios, varredura multi-servidor e detecção de bloqueio."""
+"""Server/domain configuration, multi-server scanning, block detection, and performance tests."""
 import statistics
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -8,91 +8,94 @@ from typing import Optional
 from .client import QueryResult, query_udp, query_dot
 
 # ---------------------------------------------------------------------------
-# Servidores DNS configurados
+# DNS server list
 # ---------------------------------------------------------------------------
 
-# Tupla: (ip_ou_hostname, categoria_filtro)
+# Value tuple: (ip_or_hostname, filter_category)
 DNS_SERVERS: dict[str, tuple[str, str]] = {
-    # Sem filtragem
-    "Google":                   ("8.8.8.8",          "nenhum"),
-    "Google (secundário)":      ("8.8.4.4",          "nenhum"),
-    "Cloudflare":               ("1.1.1.1",          "nenhum"),
-    "Cloudflare (secundário)":  ("1.0.0.1",          "nenhum"),
-    "Quad9 (sem filtro)":       ("9.9.9.10",         "nenhum"),
-    "Verisign":                 ("64.6.64.6",        "nenhum"),
-    "Control D":                ("76.76.2.0",        "nenhum"),
-    "DNS.Watch":                ("84.200.69.80",     "nenhum"),
-    "Yandex DNS":               ("77.88.8.8",        "nenhum"),
-    "Level3":                   ("209.244.0.3",      "nenhum"),
-    # Filtragem de segurança (malware/phishing)
-    "Quad9":                    ("9.9.9.9",          "segurança"),
-    "OpenDNS":                  ("208.67.222.222",   "segurança"),
-    "CleanBrowsing Security":   ("185.228.168.9",    "segurança"),
-    "AdGuard DNS":              ("94.140.14.14",     "segurança"),
-    "Comodo Secure":            ("8.26.56.26",       "segurança"),
-    "Norton ConnectSafe":       ("199.85.126.10",    "segurança"),
-    # Filtragem familiar (adulto + segurança)
-    "Cloudflare Family":        ("1.1.1.3",          "família"),
-    "OpenDNS FamilyShield":     ("208.67.222.123",  "família"),
-    "CleanBrowsing Family":     ("185.228.168.168", "família"),
-    "AdGuard Family":           ("94.140.14.15",     "família"),
+    # No filtering
+    "Google":                   ("8.8.8.8",          "none"),
+    "Google (secondary)":       ("8.8.4.4",          "none"),
+    "Cloudflare":               ("1.1.1.1",          "none"),
+    "Cloudflare (secondary)":   ("1.0.0.1",          "none"),
+    "Quad9 (no filter)":        ("9.9.9.10",         "none"),
+    "Verisign":                 ("64.6.64.6",        "none"),
+    "Control D":                ("76.76.2.0",        "none"),
+    "DNS.Watch":                ("84.200.69.80",     "none"),
+    "Yandex DNS":               ("77.88.8.8",        "none"),
+    "Level3":                   ("209.244.0.3",      "none"),
+    # Security filtering (malware/phishing)
+    "Quad9":                    ("9.9.9.9",          "security"),
+    "OpenDNS":                  ("208.67.222.222",   "security"),
+    "CleanBrowsing Security":   ("185.228.168.9",    "security"),
+    "AdGuard DNS":              ("94.140.14.14",     "security"),
+    "Comodo Secure":            ("8.26.56.26",       "security"),
+    "Norton ConnectSafe":       ("199.85.126.10",    "security"),
+    # Family filtering (adult + security)
+    "Cloudflare Family":        ("1.1.1.3",          "family"),
+    "OpenDNS FamilyShield":     ("208.67.222.123",  "family"),
+    "CleanBrowsing Family":     ("185.228.168.168", "family"),
+    "AdGuard Family":           ("94.140.14.15",     "family"),
 }
 
 DOT_SERVERS: dict[str, tuple[str, str]] = {
-    "Google DoT":     ("dns.google",      "nenhum"),
-    "Cloudflare DoT": ("one.one.one.one", "nenhum"),
-    "Quad9 DoT":      ("dns.quad9.net",   "segurança"),
+    "Google DoT":     ("dns.google",      "none"),
+    "Cloudflare DoT": ("one.one.one.one", "none"),
+    "Quad9 DoT":      ("dns.quad9.net",   "security"),
 }
 
 # ---------------------------------------------------------------------------
-# Domínios de teste
+# Test domains
 # ---------------------------------------------------------------------------
 
 TEST_DOMAINS: list[tuple[str, str]] = [
-    ("www.example.com",     "controle — nenhum deveria bloquear"),
-    ("www.pucrs.br",        "controle regional"),
-    ("internetbadguys.com", "teste OpenDNS — bloqueado por segurança"),
-    ("reddit.com",          "rede social — potenc. bloqueado familiar"),
-    ("tinder.com",          "aplicativo — potenc. bloqueado familiar"),
-    ("polymarket.com",      "bloqueado no BR (ordem judicial Anatel)"),
-    ("www.google.com",      "controle adicional"),
-    ("thepiratebay.org",    "potencialmente bloqueado"),
-    ("bet365.com",          "apostas — bloqueado no BR"),
+    ("www.example.com",     "control — no server should block this"),
+    ("www.pucrs.br",        "regional control"),
+    ("internetbadguys.com", "OpenDNS test domain — blocked by security filters"),
+    ("reddit.com",          "social network — potentially blocked by family filters"),
+    ("tinder.com",          "dating app — potentially blocked by family filters"),
+    ("polymarket.com",      "blocked in Brazil by court order (Anatel)"),
+    ("www.google.com",      "additional control"),
+    ("thepiratebay.org",    "potentially blocked"),
+    ("bet365.com",          "gambling — blocked in Brazil"),
 ]
 
 # ---------------------------------------------------------------------------
-# Detecção de bloqueio
+# Block detection
 # ---------------------------------------------------------------------------
 
 NULL_IPS = {"0.0.0.0", "127.0.0.1", "::"}
 
 BLOCK_REASONS = {
-    "NXDOMAIN":      "Domínio inexistente (possível bloqueio)",
-    "REFUSED":       "Consulta recusada",
-    "SERVFAIL":      "Falha no servidor",
-    "TIMEOUT":       "Sem resposta (timeout)",
-    "NULL_IP":       "Endereço nulo (0.0.0.0 / 127.0.0.1)",
-    "IP_DIVERGENTE": "IP diferente do consenso (possível redirecionamento)",
-    "SEM_RESPOSTA":  "Sem registros A na resposta",
+    "NXDOMAIN":     "Domain does not exist (possible block)",
+    "REFUSED":      "Query refused by server",
+    "SERVFAIL":     "Server failure",
+    "TIMEOUT":      "No response (timeout)",
+    "NULL_IP":      "Null address returned (0.0.0.0 / 127.0.0.1)",
+    "DIVERGENT_IP": "IP differs from consensus (possible redirect)",
+    "NO_RECORDS":   "No A records in response",
 }
 
 
 def detect_blocks(results: list[QueryResult]) -> dict[str, tuple[str, list[str]]]:
-    """Analisa os resultados e retorna dict server_name → (tipo_bloqueio, ips)."""
-    # Estabelece consenso a partir de servidores sem filtro que responderam NOERROR com IPs
-    no_filter_ips: list[str] = []
+    """Analyse results and return a mapping of server_name -> (block_type, ips).
+
+    Consensus IPs are derived from unfiltered servers that returned NOERROR.
+    A server is flagged only when its response clearly deviates from that consensus.
+    """
+    # Build consensus from unfiltered servers that returned NOERROR with IPs
+    unfiltered_ips: list[str] = []
     for r in results:
-        if r.filter_type == "nenhum" and r.rcode == 0 and r.ips:
-            no_filter_ips.extend(r.ips)
+        if r.filter_type == "none" and r.rcode == 0 and r.ips:
+            unfiltered_ips.extend(r.ips)
 
     consensus: set[str] = set()
-    if no_filter_ips:
-        counts = Counter(no_filter_ips)
+    if unfiltered_ips:
+        counts = Counter(unfiltered_ips)
         max_count = max(counts.values())
-        # IPs que aparecem com frequência majoritária entre servidores sem filtro
         consensus = {ip for ip, c in counts.items() if c >= max(1, max_count // 2)}
 
-    # Determina se a maioria dos servidores resolve normalmente
+    # Check whether the majority of servers resolve the domain successfully
     noerror_with_ips = sum(1 for r in results if r.rcode == 0 and r.ips)
     majority_resolves = noerror_with_ips >= len(results) // 2
 
@@ -104,13 +107,13 @@ def detect_blocks(results: list[QueryResult]) -> dict[str, tuple[str, list[str]]
             blocks[name] = ("TIMEOUT", [])
             continue
         if r.response is None:
-            blocks[name] = (r.error or "SEM_RESPOSTA", [])
+            blocks[name] = (r.error or "NO_RECORDS", [])
             continue
 
         rcode = r.rcode
         ips = r.ips
 
-        if rcode == 3:  # NXDOMAIN
+        if rcode == 3:  # NXDOMAIN — flag only when most servers resolve fine
             if majority_resolves:
                 blocks[name] = ("NXDOMAIN", [])
         elif rcode == 5:  # REFUSED
@@ -123,15 +126,15 @@ def detect_blocks(results: list[QueryResult]) -> dict[str, tuple[str, list[str]]
             if null_found:
                 blocks[name] = ("NULL_IP", list(ip_set))
             elif consensus and ip_set and not ip_set.intersection(consensus):
-                blocks[name] = ("IP_DIVERGENTE", list(ip_set))
+                blocks[name] = ("DIVERGENT_IP", list(ip_set))
             elif not ips:
-                blocks[name] = ("SEM_RESPOSTA", [])
+                blocks[name] = ("NO_RECORDS", [])
 
     return blocks
 
 
 # ---------------------------------------------------------------------------
-# Varredura multi-servidor
+# Multi-server scan
 # ---------------------------------------------------------------------------
 
 def scan_domain(
@@ -140,7 +143,7 @@ def scan_domain(
     timeout: float = 3.0,
     max_workers: int = 20,
 ) -> list[QueryResult]:
-    """Consulta o domínio em todos os servidores em paralelo."""
+    """Query the domain against all configured servers in parallel."""
     if servers is None:
         servers = DNS_SERVERS
 
@@ -158,7 +161,7 @@ def scan_domain(
 
 
 # ---------------------------------------------------------------------------
-# Avaliação de desempenho
+# Performance evaluation
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -189,7 +192,7 @@ def perf_test(
     protocol: str = "udp",
     timeout: float = 3.0,
 ) -> PerfStats:
-    """Executa n consultas e calcula estatísticas de desempenho."""
+    """Run n queries and compute min/avg/max latency and packet loss."""
     times: list[float] = []
     errors = 0
 
@@ -232,7 +235,7 @@ def perf_test_all(
     n: int = 10,
     max_workers: int = 10,
 ) -> list[PerfStats]:
-    """Executa teste de desempenho em todos os servidores em paralelo."""
+    """Run performance tests against all servers in parallel, sorted by avg latency."""
     if servers is None:
         servers = DNS_SERVERS
 

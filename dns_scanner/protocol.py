@@ -1,7 +1,7 @@
-"""DNS message encoding/decoding per RFC 1035 — sem uso de bibliotecas DNS."""
+"""DNS message encoding/decoding per RFC 1035 — no DNS libraries used."""
 import random
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 RCODE_NAMES = {
@@ -23,7 +23,7 @@ QCLASS_IN = 1
 
 
 def encode_name(domain: str) -> bytes:
-    """Codifica nome de domínio em labels DNS (RFC 1035 §3.1)."""
+    """Encode a domain name as DNS labels (RFC 1035 §3.1)."""
     result = b""
     for label in domain.rstrip(".").split("."):
         encoded = label.encode("ascii")
@@ -32,7 +32,7 @@ def encode_name(domain: str) -> bytes:
 
 
 def build_query(domain: str, qtype: int = QTYPE_A, qid: Optional[int] = None) -> bytes:
-    """Constrói mensagem de consulta DNS binária (RFC 1035 §4)."""
+    """Build a DNS query message in wire format (RFC 1035 §4)."""
     if qid is None:
         qid = random.randint(0, 65535)
     # Flags: QR=0 (query), OPCODE=0, AA=0, TC=0, RD=1, RA=0, Z=0, RCODE=0
@@ -85,9 +85,13 @@ class DNSResponse:
 
 
 def decode_name(data: bytes, offset: int) -> tuple[str, int]:
-    """Decodifica nome DNS com suporte a compressão de ponteiros (RFC 1035 §4.1.4)."""
+    """Decode a DNS domain name, handling compression pointers (RFC 1035 §4.1.4).
+
+    Returns (name, next_offset) where next_offset is the position immediately
+    after the name field in the original message (accounts for pointer jumps).
+    """
     labels: list[str] = []
-    next_offset: int = -1
+    next_offset: int = -1  # set to position after first pointer, then frozen
     visited: set[int] = set()
 
     while True:
@@ -95,7 +99,7 @@ def decode_name(data: bytes, offset: int) -> tuple[str, int]:
             break
 
         if offset in visited:
-            raise ValueError("Loop de ponteiro detectado")
+            raise ValueError("Compression pointer loop detected")
         visited.add(offset)
 
         length = data[offset]
@@ -104,9 +108,9 @@ def decode_name(data: bytes, offset: int) -> tuple[str, int]:
             offset += 1
             break
         elif (length & 0xC0) == 0xC0:
-            # Ponteiro de compressão: 2 bytes com os 14 bits inferiores = offset
+            # Compression pointer: lower 14 bits are the target offset
             if offset + 1 >= len(data):
-                raise ValueError("Ponteiro truncado")
+                raise ValueError("Truncated compression pointer")
             if next_offset == -1:
                 next_offset = offset + 2
             pointer = ((length & 0x3F) << 8) | data[offset + 1]
@@ -114,7 +118,7 @@ def decode_name(data: bytes, offset: int) -> tuple[str, int]:
         else:
             offset += 1
             if offset + length > len(data):
-                raise ValueError("Label excede tamanho da mensagem")
+                raise ValueError("Label length exceeds message boundary")
             labels.append(data[offset : offset + length].decode("ascii", errors="replace"))
             offset += length
 
@@ -122,6 +126,7 @@ def decode_name(data: bytes, offset: int) -> tuple[str, int]:
 
 
 def _decode_rdata(rtype: int, rdata: bytes, full_msg: bytes, rdata_start: int) -> str:
+    """Decode RDATA into a human-readable string based on record type."""
     if rtype == QTYPE_A and len(rdata) == 4:
         return ".".join(str(b) for b in rdata)
     elif rtype == QTYPE_AAAA and len(rdata) == 16:
@@ -134,19 +139,19 @@ def _decode_rdata(rtype: int, rdata: bytes, full_msg: bytes, rdata_start: int) -
         except Exception:
             return rdata.hex()
     elif rtype == QTYPE_MX and len(rdata) >= 2:
-        pref = struct.unpack("!H", rdata[:2])[0]
+        preference = struct.unpack("!H", rdata[:2])[0]
         try:
             name, _ = decode_name(full_msg, rdata_start + 2)
-            return f"{pref} {name}"
+            return f"{preference} {name}"
         except Exception:
             return rdata.hex()
     return rdata.hex()
 
 
 def parse_response(data: bytes) -> DNSResponse:
-    """Faz o parsing da resposta DNS binária (RFC 1035 §4)."""
+    """Parse a DNS response from wire format (RFC 1035 §4)."""
     if len(data) < 12:
-        raise ValueError(f"Resposta muito curta: {len(data)} bytes")
+        raise ValueError(f"Response too short: {len(data)} bytes")
 
     qid, flags, qdcount, ancount, nscount, arcount = struct.unpack("!HHHHHH", data[:12])
     offset = 12
@@ -155,7 +160,7 @@ def parse_response(data: bytes) -> DNSResponse:
     for _ in range(qdcount):
         name, offset = decode_name(data, offset)
         if offset + 4 > len(data):
-            raise ValueError("Seção de questão truncada")
+            raise ValueError("Truncated question section")
         qtype, qclass = struct.unpack("!HH", data[offset : offset + 4])
         offset += 4
         questions.append((name, qtype, qclass))
