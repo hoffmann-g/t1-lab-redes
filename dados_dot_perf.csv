@@ -1,0 +1,7 @@
+server_name,server_ip,filter,domain,protocol,n_queries,n_success,avg_ms,min_ms,max_ms,loss_rate
+Cloudflare,1.1.1.1,none,www.example.com,udp,10,10,92.86,15.26,234.73,0.000
+Google,8.8.8.8,none,www.example.com,udp,10,10,142.12,27.39,235.67,0.000
+Quad9,9.9.9.9,security,www.example.com,udp,10,10,143.95,28.23,235.66,0.000
+Quad9 DoT,dns.quad9.net,security,www.example.com,dot,10,10,383.69,152.00,780.51,0.000
+Google DoT,dns.google,none,www.example.com,dot,10,10,413.94,177.05,798.47,0.000
+Cloudflare DoT,one.one.one.one,none,www.example.com,dot,10,10,452.99,255.58,792.72,0.000

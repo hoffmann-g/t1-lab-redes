@@ -1,0 +1,21 @@
+server_name,server_ip,filter,domain,protocol,n_queries,n_success,avg_ms,min_ms,max_ms,loss_rate
+AdGuard Family,94.140.14.15,family,www.example.com,udp,10,10,47.53,22.70,127.42,0.000
+Cloudflare Family,1.1.1.3,family,www.example.com,udp,10,10,60.27,15.33,87.37,0.000
+Norton ConnectSafe,199.85.126.10,security,www.example.com,udp,10,10,63.17,24.55,131.99,0.000
+OpenDNS FamilyShield,208.67.222.123,family,www.example.com,udp,10,10,64.22,28.91,116.35,0.000
+AdGuard DNS,94.140.14.14,security,www.example.com,udp,10,10,70.00,22.82,148.02,0.000
+CleanBrowsing Family,185.228.168.168,family,www.example.com,udp,10,10,72.49,22.78,147.59,0.000
+CleanBrowsing Security,185.228.168.9,security,www.example.com,udp,10,10,80.85,24.70,147.54,0.000
+Cloudflare (secondary),1.0.0.1,none,www.example.com,udp,10,10,94.78,15.79,234.17,0.000
+OpenDNS,208.67.222.222,security,www.example.com,udp,10,10,97.12,29.25,191.47,0.000
+Quad9,9.9.9.9,security,www.example.com,udp,10,10,109.84,22.78,235.25,0.000
+Cloudflare,1.1.1.1,none,www.example.com,udp,10,10,118.25,14.60,235.16,0.000
+Quad9 (no filter),9.9.9.10,none,www.example.com,udp,10,10,155.00,30.08,235.84,0.000
+Verisign,64.6.64.6,none,www.example.com,udp,10,10,155.00,29.89,234.93,0.000
+Google (secondary),8.8.4.4,none,www.example.com,udp,10,10,155.01,34.26,234.74,0.000
+Google,8.8.8.8,none,www.example.com,udp,10,10,155.12,35.74,234.64,0.000
+Control D,76.76.2.0,none,www.example.com,udp,10,10,168.53,67.41,235.11,0.000
+Level3,209.244.0.3,none,www.example.com,udp,10,10,206.09,137.34,278.01,0.000
+Comodo Secure,8.26.56.26,security,www.example.com,udp,10,6,248.19,132.15,378.38,0.400
+DNS.Watch,84.200.69.80,none,www.example.com,udp,10,6,278.12,199.27,411.07,0.400
+Yandex DNS,77.88.8.8,none,www.example.com,udp,10,7,618.25,476.02,710.13,0.300
