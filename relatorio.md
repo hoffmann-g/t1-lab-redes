@@ -339,7 +339,7 @@ A captura mostra múltiplas consultas e respostas simultâneas, geradas pela var
 
 #### Consulta DNS (query)
 
-![Pacote de consulta DNS](screenshots/udp_query.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 Detalhe de uma consulta DNS para `www.example.com` enviada ao servidor Google (8.8.8.8):
 
@@ -353,7 +353,7 @@ O domínio consultado (`www.example.com`) aparece em texto claro no payload UDP,
 
 #### Resposta DNS normal (NOERROR)
 
-![Resposta DNS normal](screenshots/udp_response_ok.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 Resposta do servidor Google (8.8.8.8) para `www.example.com`:
 
@@ -367,7 +367,7 @@ Resposta do servidor Google (8.8.8.8) para `www.example.com`:
 
 #### Resposta de bloqueio — NXDOMAIN
 
-![Resposta NXDOMAIN](screenshots/udp_response_blocked_nxdomain.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 Resposta do servidor **CleanBrowsing Family (185.228.168.168)** para `internetbadguys.com`:
 
@@ -381,7 +381,7 @@ O servidor responde como se o domínio não existisse, mesmo que ele exista e se
 
 #### Resposta de bloqueio — Redirecionamento (IP divergente)
 
-![Resposta com redirect](screenshots/udp_response_redirect.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 Resposta do servidor **OpenDNS (208.67.222.222)** para `internetbadguys.com`:
 
@@ -443,7 +443,7 @@ O DoT apresenta latência média **2,7× a 4,9×** maior que o UDP tradicional, 
 
 #### Lista de pacotes DoT
 
-![Lista de pacotes DoT](screenshots/dot_lista.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 A captura com filtro `tcp.port == 853` mostra uma sequência bem diferente do UDP:
 
@@ -453,13 +453,13 @@ A captura com filtro `tcp.port == 853` mostra uma sequência bem diferente do UD
 
 #### TLS Handshake
 
-![TLS Handshake](screenshots/dot_tls_handshake.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 O Client Hello revela metadados do handshake TLS: versão (TLS 1.3), cipher suites suportadas, extensões (SNI com o hostname do servidor DNS, ALPN, etc.). O **SNI (Server Name Indication)** pode revelar o hostname do servidor DoT (`dns.google`, `one.one.one.one`), mas não o domínio consultado.
 
 #### Application Data (payload cifrado)
 
-![Application Data DoT](screenshots/dot_application_data.png)
+> *Captura omitida na versão pública: continha identificadores da rede de origem (endereços MAC ou IPv6 público).*
 
 O pacote de dados da consulta DNS:
 
@@ -557,7 +557,7 @@ DNS/UDP é significativamente mais rápido. Nos testes, o UDP apresentou média 
 
 **6. O conteúdo das consultas DNS é visível no tráfego DoT capturado pelo Wireshark?**
 
-Não. Como mostrado na captura `dot_application_data.png`, o payload DNS está encriptado dentro do registro TLS Application Data — o Wireshark exibe apenas a sequência de bytes cifrados, sem revelar o domínio consultado ou a resposta. O único metadado visível é o endereço IP do servidor DoT e, potencialmente, o SNI no Client Hello (que revela apenas o hostname do servidor DNS, não o domínio consultado).
+Não. Na captura de Application Data, o payload DNS está encriptado dentro do registro TLS Application Data — o Wireshark exibe apenas a sequência de bytes cifrados, sem revelar o domínio consultado ou a resposta. O único metadado visível é o endereço IP do servidor DoT e, potencialmente, o SNI no Client Hello (que revela apenas o hostname do servidor DNS, não o domínio consultado).
 
 **7. O DoT é mais fácil ou mais difícil de bloquear do que o DNS tradicional?**
 
