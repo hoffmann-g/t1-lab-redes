@@ -36,7 +36,7 @@ dns-scanner --help
 dns-scanner [--timeout SECONDS] {scan,perf,dot-perf,full} ...
 ```
 
-`--timeout` is a global option placed before the subcommand. It sets the per-query UDP timeout (default 3.0 s) for `scan` and `full`.
+`--timeout` is a global option placed before the subcommand. It sets the per-query UDP timeout (default 3.0 s) for `scan`. `full` has its own `--timeout` option placed after the subcommand, and its default overrides the global value.
 
 | Command | Arguments | Description |
 |---------|-----------|-------------|
